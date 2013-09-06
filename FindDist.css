@@ -1,0 +1,226 @@
+// Name : Radhika Bhise
+// Date Created : 8 August 2013
+// Description : Windows Service which will find the distance in mileage (using MapPoint) between 2 addresses fetched from database table (SQL Server 2008)
+//               and store the mileage into the same table.
+
+using MapPoint;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Diagnostics;
+using System.Linq;
+using System.ServiceProcess;
+using System.Text;
+using System.Threading.Tasks;
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+
+namespace WindowsService1
+{
+    public partial class FindDistance : ServiceBase
+    {
+        // ---- SQL variable declaration ----
+        SqlConnection sqlConn = new SqlConnection("Data Source=RCNYSQL;Initial Catalog=FindDist;Persist Security Info=True;User ID=Radhika.Bhise;Password=D1sn3y_Up_2");
+        SqlCommand updateCmd = new SqlCommand(); // New sql command to execute update query
+        System.Data.DataSet dataSet = null; // New DataSet for storing records from database whose status=0
+        SqlDataAdapter dataAdapter = null; // New Sql Adapter to execute update query and fill the dataset
+        DataTable dataTable = null; // New Data Table to use dataset table
+
+        // --------------- Variable declaration ---------------
+        double distance = 0.00; // To calculate distance
+        string street, city, state, postal_code; // To fetch records from database
+       
+        //MapPoint.Application MapApp = new MapPoint.Application();
+        //MapPoint.Map objMap = null; // Declaring MapPoint Map Object
+        //MapPoint.Route objRoute = null; // Declaring MapPoint Route Object
+        //MapPoint.FindResults FRPickUp = null; // Declaring MapPoint FindResults Pick Up object for pick up address
+        //MapPoint.FindResults FRDestination = null; // Declaring MapPoint FindResults Destination object for Destination address
+        //MapPoint.Location LocPickUp = null; // Declaring MapPoint Location Pick Up object for pick up FindResults
+        //MapPoint.Location LocDestination = null; // Declaring MapPoint Location Destination object for Destination FindResults
+
+        //-- Constructor ---
+        public FindDistance()
+        {
+            InitializeComponent();
+            if (!EventLog.SourceExists("MyService1"))
+                EventLog.CreateEventSource("MyService1", "Application");
+        }
+
+        //public void OnDebug()
+        //{
+        //    OnStart(null);
+        //}
+
+        // -- OnStart method --
+        protected override void OnStart(string[] args)
+        {
+            //System.Threading.Thread MyThread = new System.Threading.Thread(new System.Threading.ThreadStart(Find_Distance));
+            //MyThread.Start();
+
+            //base.OnStart(args);
+            Find_Distance();
+        }
+
+        // -- Find Distance method to calculate mileage between two addresses ---
+        public void Find_Distance()
+        {
+            try
+            {
+                while (true)// while loop which will execute constantly
+                {
+                    sqlConn.Open(); // Opening SQL connection
+                    
+                    // -------- Creating dataset to store records fetched from database ---------
+                    dataSet = new System.Data.DataSet(); // Initialized new Dataset
+                    dataAdapter = new SqlDataAdapter("SELECT * FROM dbo.FIND_DISTANCE where STATUS=0", sqlConn); // Initialized new Data Adapter 
+                    dataAdapter.Fill(dataSet); // Filling the dataset through data adapter
+                    dataTable = dataSet.Tables[0]; // Initialized data table by assigning dataset table
+                    if (dataSet != null)
+                    {
+                        EventLog.WriteEntry("Found dataset");
+                        if (dataTable != null) // checking if datatable is not null
+                        {
+                            EventLog.WriteEntry("Found datatable");
+                           
+                            foreach (DataRow dr in dataTable.Rows) // for reading rows one by one from datatable
+                            {
+                                EventLog.WriteEntry("In For Loop");
+                                MapPoint.Application MapApp = new MapPoint.Application();
+                                MapPoint.Map objMap = null; // Declaring MapPoint Map Object
+                                MapPoint.Route objRoute = null; // Declaring MapPoint Route Object
+                                MapPoint.FindResults FRPickUp = null; // Declaring MapPoint FindResults Pick Up object for pick up address
+                                MapPoint.FindResults FRDestination = null; // Declaring MapPoint FindResults Destination object for Destination address
+                                MapPoint.Location LocPickUp = null; // Declaring MapPoint Location Pick Up object for pick up FindResults
+                                MapPoint.Location LocDestination = null; // Declaring MapPoint Location Destination object for Destination FindResults
+
+                                
+                                objMap = MapApp.ActiveMap;
+
+                                EventLog.WriteEntry("Map");
+                                // ------------- PickUp Address--------
+                                if (dr[2] != "" || dr[2] != null)
+                                    street = dr[1] + " " + dr[2]; // Build_No & Street
+                                else
+                                    street = "";
+                                if (dr[3] != "" || dr[3] != null)
+                                    city = dr[3] + ""; // City
+                                else
+                                    city = "";
+                                if (dr[4] != "" || dr[4] != null)
+                                    state = dr[4] + ""; // State
+                                else
+                                    state = "";
+                                if (dr[5] != "" || dr[5] != null)
+                                    postal_code = dr[5] + ""; // Postal_Code
+                                else
+                                    postal_code = "";
+
+                                EventLog.WriteEntry(street + city + state + postal_code);
+                               
+                                if (street != "" && city != "" && state != "" && postal_code != "") // checking for null values
+                                {
+                                    EventLog.WriteEntry("FRPickUpIN");
+                                    //------------- Passing address to Map object -----------------
+                                    FRPickUp = objMap.FindAddressResults(street, city, "", state, postal_code, MapPoint.GeoCountry.geoCountryUnitedStates);
+                                   
+                                    EventLog.WriteEntry("FRPickUp");
+                                }
+                                // ----------- Destination Address -------------
+                                if (dr[8] != "" || dr[8] != null)
+                                    street = dr[7] + " " + dr[8]; // Build_No & Street
+                                else
+                                    street = "";
+                                if (dr[9] != "" || dr[9] != null)
+                                    city = dr[9] + ""; // City
+                                else
+                                    city = "";
+                                if (dr[10] != "" || dr[10] != null)
+                                    state = dr[10] + ""; // State
+                                else
+                                    state = "";
+                                if (dr[11] != "" || dr[11] != null)
+                                    postal_code = dr[11] + ""; // Postal_Code
+                                else
+                                    postal_code = "";
+                                EventLog.WriteEntry(street + city + state + postal_code);
+
+                                if (street != "" && city != "" && state != "" && postal_code != "") // checking for null values
+                                {
+                                    //------------- Passing address to Map object -----------------
+                                    FRDestination = objMap.FindAddressResults(street, city, "", state, postal_code, MapPoint.GeoCountry.geoCountryUnitedStates);
+                                    
+                                    EventLog.WriteEntry("FRDestination");
+                                }
+                                if (FRPickUp != null && FRDestination != null) // Checking for Null FindResults object
+                                {
+                                    // --------------Creating Location objects by using get_item(1) property--------------
+                                    LocPickUp = FRPickUp.get_Item(1) as MapPoint.Location; // Creating Pick Up location object by passing pickup address
+                                    LocDestination = FRDestination.get_Item(1) as MapPoint.Location; // Creating destination location object by passing destination address
+                                    
+                                    EventLog.WriteEntry("Location");
+                                }
+                                if (LocPickUp != null && LocDestination != null) // Checking for Null Location object
+                                {
+                                   
+                                    EventLog.WriteEntry("MapPoint");
+                                    // ---------------- Adding waypoints to the route object --------------
+                                    objRoute = objMap.ActiveRoute; // Creating an object of MapRoute 
+                                    objRoute.Waypoints.Add(LocPickUp, LocPickUp.Name); // Adding pick up address as waypoint
+                                    objRoute.Waypoints.Add(LocDestination, LocDestination.Name); // Adding destination address as waypoint
+                                    objRoute.Calculate(); // Calculating distance between pickup and destination addresses
+
+                                    // ----------- Getting the distance from route object-------------
+                                    distance = objRoute.Distance; // Storing distance value in Distance variable
+                                    distance = Math.Ceiling(distance * 100) / 100; // Truncating the distance value to the 2 decimal places
+                                   
+                                    EventLog.WriteEntry("Distance calculated");
+                                    
+                                    // ----------------Updating table by inserting calcuated mileage and 
+                                    updateCmd.Transaction = sqlConn.BeginTransaction("Begin Trasaction");// New SQL transaction begins
+                                    updateCmd.CommandText = "UPDATE dbo.FIND_DISTANCE SET DISTANCE = " + distance + ", STATUS = " + 1 + " WHERE ID = " + dr[0];
+                                    updateCmd.CommandType = CommandType.Text; // Assigning command text to command type
+                                    updateCmd.Connection = sqlConn; // connecting command object to connection object
+                                    updateCmd.ExecuteNonQuery(); // Executing non Query
+                                    updateCmd.Transaction.Commit(); // Committing the transaction
+                                }
+                                if (distance == 0.00)
+                                {
+                                    updateCmd.Transaction = sqlConn.BeginTransaction("Begin Trasaction");// New SQL transaction begins
+                                    updateCmd.CommandText = "UPDATE dbo.FIND_DISTANCE SET STATUS = " + 2 + " WHERE ID = " + dr[0];
+                                    //updateCmd.CommandText = "UPDATE dbo.find_dist SET DISTANCE = " + distance + ", STATUS = " + 1 + " WHERE ID = " + dr[0];
+                                    updateCmd.CommandType = CommandType.Text; // Assigning command text to command type
+                                    updateCmd.Connection = sqlConn; // connecting command object to connection object
+                                    updateCmd.ExecuteNonQuery(); // Executing non Query
+                                    updateCmd.Transaction.Commit(); // Committing the transaction
+                                }
+                            }
+                        }
+                    }
+                    sqlConn.Close();// SQL connection close
+                }
+            }
+            catch (SqlException sqlException)
+            {
+                EventLog.WriteEntry(sqlException.Message);// display error message in log file
+                sqlConn.Close(); // SQL connection close
+            }
+            catch (Exception ex)
+            {
+                EventLog.WriteEntry(ex.Message); // display error message
+                sqlConn.Close(); // SQL connection close
+                //return;
+            }
+        }
+        protected override void OnStop()
+        {
+            sqlConn.Close();// SQL connection close
+        }
+    }
+}
+
+
+
+
